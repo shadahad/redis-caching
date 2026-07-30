@@ -196,6 +196,23 @@
 
       input.value = '';
     }
+    
+    function applyInitialTheme() {
+      const saved = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'dark' || (!saved && prefersDark)) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('theme-toggle-icon').className = 'fa-solid fa-sun';
+      }
+    }
+    
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      document.getElementById('theme-toggle-icon').className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+    }
+    
+    applyInitialTheme();
   </script>
 </body>
 </html>
