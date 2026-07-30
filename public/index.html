@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redis Features Showcase</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-12">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-8 bg-red-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">R</div>
+        <h1 class="text-xl font-bold text-slate-900">Redis Capabilities Dashboard</h1>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Redis Online
+      </span>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 mt-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <!-- 1. CACHING MODULE -->
+      <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-slate-900">1. Data Caching</h2>
+            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">10s TTL</span>
+          </div>
+          <p class="text-sm text-slate-600 mb-6">Fetches profile data. First hit simulates a 1.5s DB query. Subsequent hits served instantly from Redis.</p>
+          
+          <button onclick="fetchProfile()" id="cacheBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-xl transition-all shadow-sm flex justify-center items-center gap-2">
+            Fetch Profile
+          </button>
+
+          <div id="cacheResult" class="mt-6 hidden">
+            <div class="flex items-center justify-between text-xs font-medium mb-2">
+              <span id="cacheSource" class="px-2 py-0.5 rounded font-mono"></span>
+              <span id="cacheLatency" class="text-slate-500 font-mono"></span>
+            </div>
+            <pre id="cacheData" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs font-mono text-slate-700 overflow-x-auto"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. RATE LIMITING MODULE -->
+      <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-slate-900">2. Rate Limiting</h2>
+            <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">Max 5 req / 10s</span>
+          </div>
+          <p class="text-sm text-slate-600 mb-6">Tracks IP requests in Redis using atomic counters. Excess requests return HTTP 429.</p>
+
+          <button onclick="triggerRateLimit()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl transition-all shadow-sm">
+            Send API Request
+          </button>
+
+          <div id="rateLimitBox" class="mt-6 hidden">
+            <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+              <span>Usage Counter</span>
+              <span id="rateLimitCount">0 / 5</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2 mb-4 overflow-hidden">
+              <div id="rateLimitBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="rateLimitStatus" class="p-3 rounded-lg text-xs font-medium"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. PUB/SUB MODULE -->
+      <section class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-slate-900">3. Pub/Sub Engine</h2>
+            <span class="text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">Live WS</span>
+          </div>
+          <p class="text-sm text-slate-600 mb-4">Publishes messages to a Redis Channel. Subscribers receive them instantly via WebSocket.</p>
+
+          <div class="flex gap-2 mb-4">
+            <input type="text" id="pubMessage" placeholder="Type a message..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900">
+            <button onclick="publishMessage()" class="bg-slate-900 hover:bg-slate-800 text-white font-medium px-4 py-2 rounded-xl text-sm transition-all">
+              Send
+            </button>
+          </div>
+
+          <div class="border border-slate-200 rounded-xl bg-slate-50 p-3 h-36 overflow-y-auto" id="pubSubFeed">
+            <div class="text-xs text-slate-400 italic text-center py-4" id="emptyFeed">No events received yet</div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    // --- 1. Cache JS ---
+    async function fetchProfile() {
+      const btn = document.getElementById('cacheBtn');
+      btn.innerText = 'Fetching...';
+      btn.disabled = true;
+
+      const res = await fetch('/api/user-profile');
+      const data = await res.json();
+
+      document.getElementById('cacheResult').classList.remove('hidden');
+      const sourceEl = document.getElementById('cacheSource');
+      
+      if(data.source.includes('CACHE')) {
+        sourceEl.className = 'px-2 py-0.5 rounded font-mono bg-emerald-100 text-emerald-800';
+      } else {
+        sourceEl.className = 'px-2 py-0.5 rounded font-mono bg-amber-100 text-amber-800';
+      }
+
+      sourceEl.innerText = data.source;
+      document.getElementById('cacheLatency').innerText = data.latency;
+      document.getElementById('cacheData').innerText = JSON.stringify(data.data, null, 2);
+
+      btn.innerText = 'Fetch Profile';
+      btn.disabled = false;
+    }
+
+    // --- 2. Rate Limit JS ---
+    async function triggerRateLimit() {
+      const res = await fetch('/api/rate-limited-action');
+      const statusBox = document.getElementById('rateLimitStatus');
+      const countLabel = document.getElementById('rateLimitCount');
+      const bar = document.getElementById('rateLimitBar');
+      
+      document.getElementById('rateLimitBox').classList.remove('hidden');
+
+      if (res.status === 429) {
+        const errorData = await res.json();
+        countLabel.innerText = `${errorData.current} / ${errorData.limit}`;
+        bar.style.width = '100%';
+        bar.className = 'bg-red-500 h-2 rounded-full transition-all duration-300';
+        
+        statusBox.className = 'p-3 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200';
+        statusBox.innerText = `⚠️ Rate limit reached! Reset in ${errorData.ttl} seconds.`;
+      } else {
+        const data = await res.json();
+        const current = data.rateLimit.current;
+        const limit = data.rateLimit.limit;
+        const pct = (current / limit) * 100;
+
+        countLabel.innerText = `${current} / ${limit}`;
+        bar.style.width = `${pct}%`;
+        bar.className = 'bg-blue-600 h-2 rounded-full transition-all duration-300';
+
+        statusBox.className = 'p-3 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+        statusBox.innerText = `✅ Success. ${limit - current} requests left in window.`;
+      }
+    }
+
+    // --- 3. Pub/Sub WebSocket JS ---
+    const ws = new WebSocket(`ws://${location.host}`);
+    const feed = document.getElementById('pubSubFeed');
+    const emptyFeed = document.getElementById('emptyFeed');
+
+    ws.onmessage = (event) => {
+      if (emptyFeed) emptyFeed.remove();
+      const data = JSON.parse(event.data);
+      
+      const item = document.createElement('div');
+      item.className = 'mb-2 p-2 bg-white border border-slate-200 rounded-lg text-xs shadow-sm flex justify-between items-center animate-fade-in';
+      item.innerHTML = `
+        <span class="font-medium text-slate-800">${data.text}</span>
+        <span class="text-[10px] text-slate-400 font-mono">${data.timestamp}</span>
+      `;
+      feed.prepend(item);
+    };
+
+    async function publishMessage() {
+      const input = document.getElementById('pubMessage');
+      if (!input.value.trim()) return;
+
+      await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input.value })
+      });
+
+      input.value = '';
+    }
+  </script>
+</body>
+</html>
